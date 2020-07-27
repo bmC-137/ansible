@@ -1,8 +1,6 @@
 ---
 - hosts: localhost
   gather_facts: no
-  # vars:
-  #   gcp_cred_file: /opt/keys/gcp/key.json
   vars_files:
     - /opt/vars/gcp.vars
     - /opt/vars/web.vars
@@ -153,6 +151,8 @@
 #         ssh_keys_public_keys:
 #           - src: /opt/keys/ansible/id_rsa_test.pub
 #             owner: "{{ lookup('env','USER') }}"
+
+---
 - hosts: ssh
   user: root
   connection: ssh
