@@ -16,8 +16,8 @@
   ignore_errors: yes
 
 - name: Install certbot and generate cert
-  command: "{{ certbot_script }} certonly --nginx --noninteractive --agree-tos --email {{ certbot_admin_email }} -d {{ server_hostname }}"
-  # command: "{{ certbot_script }} certonly --nginx --noninteractive --agree-tos --standalone --email {{ certbot_admin_email }} -d {{ server_hostname }}"
+  # command: "{{ certbot_script }} certonly --nginx --noninteractive --agree-tos --email {{ certbot_admin_email }} -d {{ server_hostname }}"
+  command: "{{ certbot_script }} certonly --noninteractive --agree-tos --standalone --email {{ certbot_admin_email }} -d {{ server_hostname }}"
   args:
     creates: "{{ certbot_output_dir }}"
 

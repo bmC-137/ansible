@@ -151,8 +151,6 @@
 #         ssh_keys_public_keys:
 #           - src: /opt/keys/ansible/id_rsa_test.pub
 #             owner: "{{ lookup('env','USER') }}"
-
----
 - hosts: ssh
   user: root
   connection: ssh
@@ -200,8 +198,8 @@
       with_items:
         - base
         - nginx
-        - jenkins
         - certbot
+        - jenkins
     - name: set src IP from SSH env
       shell: echo $SSH_CLIENT | awk '{print $1}'
       register: src_ip
