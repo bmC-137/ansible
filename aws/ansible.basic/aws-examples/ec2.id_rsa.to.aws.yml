@@ -1,0 +1,39 @@
+- hosts: localhost
+  gather_facts: yes
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  vars:
+    ssh_key_filename: id_rsa_bm_key_aws
+  # vars_prompt:
+  #   - name: "Key Passphrase: "
+  #     prompt: "Enter passphrase: "
+  tasks:
+    - name: Create key on localhost
+      openssh_keypair:
+        path: "/opt/keys/aws/{{ssh_key_filename}}"
+        type: rsa
+        size: 4096
+        state: present
+        force: no
+    - name: Delete old key named bm.keypair
+      ec2_key:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        aws_secret_key: "{{ AWS_SECRET_KEY }}"
+        ec2_region: "{{ AWS_REGION }}"
+        name: bm.keypair
+        state: absent
+    - name: Upload Key to AWS
+      ec2_key:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        aws_secret_key: "{{ AWS_SECRET_KEY }}"
+        ec2_region: "{{ AWS_REGION }}"
+        key_material: "{{ lookup('file', '/opt/keys/aws/{{ssh_key_filename}}.pub') }}"
+        force: no
+        name: bm.keypair
+
+
+# https://docs.ansible.com/ansible/latest/modules/openssh_keypair_module.html#openssh-keypair-module
+## 
+# https://docs.ansible.com/ansible/latest/modules/ec2_key_module.html
+##
+# https://docs.ansible.com/ansible/latest/modules/lineinfile_module.html

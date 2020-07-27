@@ -1,0 +1,45 @@
+- hosts: localhost
+  gather_facts: yes
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  tasks:
+    - name: Get instances by tag name
+      ec2_instance_info:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        aws_secret_key: "{{ AWS_SECRET_KEY }}"
+        aws_region: "{{ AWS_REGION }}"
+        filter:
+          tag:
+            - Name: LAB_1
+      register:
+        - ec2_info
+    - debug:
+        var: ec2_info.instances[0].instance_id
+    - name: Remove Tags
+      ec2_tag:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        aws_secret_key: "{{ AWS_SECRET_KEY }}"
+        aws_region: "{{ AWS_REGION }}"
+        resource: "{{ ec2_info.instance[0].instance_id }}"
+        tags:
+          Name: 
+        state: absent
+    - name: Delete instance with instance_id
+      ec2:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        aws_secret_key: "{{ AWS_SECRET_KEY }}"
+        aws_region: "{{ AWS_REGION }}"
+        instance_id:
+          - "{{ ec2_info.instance[0].instance_id }}"
+        state: absent
+      register: ec2
+    - debug:
+        var: ec2
+
+##
+# ec2_instance_info
+##
+# ec2_tag
+##
+# ec2
+##

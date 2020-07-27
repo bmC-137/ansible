@@ -1,0 +1,22 @@
+- hosts: localhost
+  gather_facts: no 
+  vars:
+    record1: lib
+    record2: test
+  vars_files:
+    - /opt/cloudflare/vars
+    - /opt/keys/cloudflare/keys.yml
+  tasks:
+    - name: Add A record to {{ domain_name }}
+      cloudflare_dns:
+        zone: "{{ domain_name }}"
+        record: "{{ record1 }}"
+        proxied: no
+        type: A
+        value: "{{ main_ip }}"
+        account_email: "{{ login_email }}"
+        account_api_token: "{{ api_token }}"
+        state: present
+      register: record
+    - debug:
+        var: record

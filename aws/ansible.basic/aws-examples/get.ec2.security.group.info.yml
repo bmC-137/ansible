@@ -1,0 +1,22 @@
+- hosts: localhost
+  gather_facts: no
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  tasks:
+    - name: Get Security group info
+      ec2_group_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        ec2_region: "{{ AWS_REGION }}"
+        filters:
+          vpc_id: vpc-02f4e8f76c24830ac
+          group_id: sg-01e97b3e7e98a7eed
+      register: sec_group_info
+    - name: Show Info
+      debug:
+        # var: sec_group_info
+        msg:
+          - "Security Group ID: {{ sec_group_info.security_groups[0].group_id }}"
+          - "IP Permissions: {{ sec_group_info.security_groups[0].ip_permissions }}"
+
+

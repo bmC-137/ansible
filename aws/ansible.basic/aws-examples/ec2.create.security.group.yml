@@ -1,0 +1,38 @@
+- hosts: localhost
+  gather_facts: no
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  tasks:
+    - name: Create EC2 Security Group
+      ec2_group:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        ec2_region: "{{ AWS_REGION }}"
+        name: EnvSecGroup
+        description: Default EC2 Security Group
+        vpc_id: vpc-02f4e8f76c24830ac
+        region: eu-west-1
+        rules:
+          - proto: tcp
+            ports: 
+              - 22
+              - 80
+              - 443
+              - 722
+            cidr_ip:
+              - 10.10.1.0/24
+              - 212.5.158.0/24
+            # group_name: default-open-ports
+            # rule_desc: Allow all from Vivacom home Public network
+          - proto: udp
+            ports: 51820
+            cidr_ip:
+              - 10.10.1.0/24
+              - 212.5.158.0/24
+            # group_name: wireguard
+            # rule_desc: VPN connection
+        rules_egress:
+          - proto: all
+
+
+

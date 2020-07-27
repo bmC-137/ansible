@@ -1,0 +1,16 @@
+aws ec2 describe-images --filters 'Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-??????-18.??-amd64-server-????????' 'Name=state,Values=available' --owners 099720109477
+
+
+aws ec2 describe-images --filters 'Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-xenial-18.04-amd64-server-????????' 'Name=state,Values=available' --owners 099720109477 --output table --query 'reverse(sort_by(Images, &CreationDate))[:2]'
+
+
+aws ec2 describe-images --filters 'Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-????????' 'Name=state,Values=available' --owners 099720109477 --output table --query 'reverse(sort_by(Images, &CreationDate))[:1].ImageId'
+
+aws ec2 describe-images --filters 'Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-??????-18.??-amd64-server-????????' 'Name=state,Values=available' --owners 099720109477 --output text --query 'reverse(sort_by(Images, &CreationDate))[:1].ImageId'
+
+bionic
+ami-0964eb2dc8b836eb6
+
+
+
+

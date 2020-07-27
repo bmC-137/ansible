@@ -1,0 +1,32 @@
+# - hosts: ssh
+- hosts: localhost
+  vars:
+    - server_hostname: bm.itenv.net
+  # gather_facts: true
+  # user: root
+  # connection: ssh
+  tasks:
+    # - name: set src IP from SSH env
+    #   shell: echo $SSH_CLIENT | awk '{print $1}'
+    #   register: src_ip
+    # - debug: 
+    #     var: src_ip
+    # - name: UFW test
+    #   ufw:
+    #     state: enabled
+    #     rule: allow
+    #     src: "{{ src_ip.stdout }}/32"
+    #   register: userip
+    # - debug:
+    #     var: userip
+    # - debug:
+    #     var: "{{ ansible_facts }}"
+      - name: test dns resolve
+        command: getent hosts "{{ server_hostname }}"
+        delay: 5
+        retries: 10
+        register: result
+        until: result is succeeded
+      - debug:
+          var: result
+

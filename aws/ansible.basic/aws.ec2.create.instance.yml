@@ -1,0 +1,154 @@
+- hosts: localhost
+  gather_facts: no
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  vars:
+    DEFAULT_VPC_SUBNET:
+    BASE_AMI: "{{ ubuntu_ami.image_id }}"
+    AWS_ZONE: eu-west-1
+  tasks:
+    - name: Get AMI info
+      ec2_ami_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        ec2_region: "{{ AWS_REGION }}"
+        owners: 099720109477
+        filters:
+          architecture: x86_64
+          name: "ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-*"
+          root-device-type: ebs
+      register: amis
+    # - name: Show AMIs info
+    #   vars:
+    #     ubuntu_ami: "{{ amis.images |sort(attribute='creation_date') | last }}"
+    #   debug:
+    #     msg:
+    #     - "{{ ubuntu_ami.image_id }}"
+
+    - name: Creating VPC
+      ec2_vpc_net:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        ec2_region: "{{ AWS_REGION }}"
+        cidr_block: 10.10.1.0/24
+        name: eu1010124
+        state: present
+        tags:
+          vpn: wireguard
+        tenancy: default
+      # register: vpc-1
+    - name: Gather VPC information
+      ec2_vpc_net_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        ec2_region: "{{ AWS_REGION }}"
+        filters:
+          "tag:vpn": "wireguard"
+      register: vpcinfo
+      tag: test1
+    - name: Write vpcs IDs in a list
+      set_fact:
+        vpcid: "{{ vpcinfo | json_query('vpcs[*].id') }}"
+      tag2: test2
+    - name: Debug and test tags3
+      debug: 
+        msg: "{{ vpcid }}"
+      tag: test3
+
+      # local_action: shell echo "{{ item }}" > /tmp/vpcs-list.txt
+    # - name: Show VPC Info from ec2_vpc_net_info module
+    #   debug:
+    #     var: vpc_info
+    #
+    # - name: Create EBS
+    #   ec2_vol:
+    #     aws_access_key: "{{ AWS_ACCESS_ID }}"
+    #     aws_secret_key: "{{ AWS_SECRET }}"
+    #     ec2_region: "{{ AWS_REGION }}"
+    #     zone: "{{ AWS_ZONE }}"
+    #     volume_size: 10
+    #     name: data
+    #     device_name: /dev/sdx
+    #   register: ebs_vol
+    #
+    - name: Create key on localhost
+      openssh_keypair:
+        path: "/opt/keys/aws/{{ssh_key_filename}}"
+        type: rsa
+        size: 4096
+        state: present
+        force: yes
+    - name: Delete old key named bm.keypair
+      ec2_key:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        aws_secret_key: "{{ AWS_SECRET_KEY }}"
+        ec2_region: "{{ AWS_REGION }}"
+        name: bm.keypair
+        state: absent
+    - name: Upload Key to AWS
+      ec2_key:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        aws_secret_key: "{{ AWS_SECRET_KEY }}"
+        ec2_region: "{{ AWS_REGION }}"
+        key_material: "{{ lookup('file', '/opt/keys/aws/{{ssh_key_filename}}.pub') }}"
+        force: no
+        name: bm.keypair
+
+    - name: Create EC2 Instance
+      ec2:
+        aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        aws_secret_key: "{{ AWS_SECRET_KEY }}"
+        ec2_region: "{{ AWS_REGION }}"
+        zone: "{{ AWS_ZONE }}"
+        instance_type: t2.micro
+        keypair: bm.keypair
+        image: "{{ BASE_AMI }}"
+        assign_public_ip: yes
+        vpc_subnet_id: "{{ DEFAULT_VPC_SUBNET }}"
+        group: bm
+        wait: true
+        exact_count: 1
+        count_tag:
+          Name: bm_count_1
+        instance_tags:
+          image: ubuntu-bionic
+          Name: bm
+      register: ec2
+    - debug:
+        var: ec2
+
+    - name: Add instance to inventory
+      add_host:
+        hostname: "{{ item.public_ip }}"
+        groupname: lab_hosts
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+        ansible_ssh_private_key: "/opt/keys/aws/keypair.pem"
+      loop: "{{ ec2.instances }}"
+    - name: Check SSH and ping status
+      hosts: ec2
+      gather_facts: yes
+      remote_user: ec2_user
+      wait_for_connection:
+        delay: 10
+        timeout: 120
+        sleep: 1
+        connect_timeout: 5
+    - name: Check Ping
+      ping:
+
+    # - name: Attach EBS
+    #   ec2_vol:
+    #     aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+    #     aws_secret_key: "{{ AWS_SECRET_KEY }}"
+    #     ec2_region: "{{ AWS_REGION }}"
+    #     instance: "{{ ec2.instances[0].id }}"
+    #     id: "{{ vol_info.volume_id }}"
+    #     device_name: /dev/sdx
+    #     delete_on_termination: yes
+    - name: Add host to group inventory
+      add_host:
+        hostname: '{{ item.public_ip }}'
+        groupname: -------------------------------------
+        # ansible_ssh_commong_args: "-o StrictHostKeyChecking=no" # This is set by default in ansible.cfg
+      loop: "{{ ec2.instances }}"
+

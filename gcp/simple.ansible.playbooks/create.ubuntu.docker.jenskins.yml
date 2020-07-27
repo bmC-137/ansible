@@ -1,0 +1,217 @@
+---
+- hosts: localhost
+  gather_facts: no
+  # vars:
+  #   gcp_cred_file: /opt/keys/gcp/key.json
+  vars_files:
+    - /opt/vars/gcp.vars
+    - /opt/vars/web.vars
+    - /opt/vars/cloudflare.vars
+    - /opt/keys/cloudflare/keys.yml
+  tasks:
+    - name: Create Disk 
+      gcp_compute_disk:
+        name: "disk-jenkins"
+        size_gb: "{{ hdd_size }}"
+        source_image: "{{ ubuntu1804 }}"
+        # source_image: "/projects/ubuntu-os-cloud/global/images/family/ubuntu-1804-lts"
+        zone: "{{ zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: disk
+    - name: Create Network
+      gcp_compute_network:
+        name: "network-dev"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: network
+    - name: create address
+      gcp_compute_address:
+        name: "address"
+        region: "{{ region }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        network_tier: STANDARD
+        state: present
+      register: address
+    - name: Create instance
+      gcp_compute_instance:
+        state: present
+        name: "{{ instance_name }}"
+        machine_type: "{{ instance_type }}"
+        disks:
+          - auto_delete: true
+            boot: true
+            source: "{{ disk }}"
+        network_interfaces:
+          # - network: "{{ network }}"
+          - network: null
+            access_configs:
+              - name: "External NAT"
+                nat_ip: "{{ address }}"
+                type: "ONE_TO_ONE_NAT"
+        zone: "{{ zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        tags: 
+          items:
+            - jenkins
+        metadata:
+          ssh-keys: "{{ ssh_pub_key }}"
+        #     block-project-ssh-keys: 'true'
+        state: present
+      register: instance
+    - debug:
+        var: instance
+    - name: Create a Firewall
+      gcp_compute_firewall:
+        name: firewall-basic
+        allowed:
+        - ip_protocol: tcp
+          ports:
+          - '22'
+          - '443'
+          - '80'
+        # A list of instance tags indicating sets of instances located in the network that may make network connections as specified in allowed[]. If no targetTags are specified, the firewall rule applies to all instances on the specified network.
+        target_tags:
+        - jenkins
+          #If source tags are specified, the firewall will apply only to traffic with source IP that belongs to a tag listed in source tags. Source tags cannot be used to control traffic to an instance's external IP address. Because tags are associated with an instance, not an IP address.
+        # source_tags:
+        # - ssh-proxy
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: firewall
+    - debug:
+        var: firewall
+    - name: Wait for SSH to come up
+      wait_for:
+        host: "{{ address.address }}"
+        port: 22
+        sleep: 10
+        delay: 35
+        timeout: 90
+    - name: Add IP to Hosts list
+      ini_file:
+        allow_no_value: yes
+        path: /etc/ansible/hosts
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        # value: "{{ item.user }}"
+      with_items:
+        - { section: "ssh", option: "{{ address.address }}" }
+        - { section: "jenkins", option: "{{ address.address }}" }
+        - { section: "ubuntu", option: "{{ address.address }}" }
+        # - { section: "ubuntu", option: "{{ address.address }}", user: "root" }
+      register: itemstest
+    - debug:
+        var: itemstest
+    - name: Add host to Inventory
+      add_host:
+        hostname: "{{ address.address }}"
+        groups:
+          - ssh
+          - jenkins
+          - ubuntu
+      register: inventorytest
+    - debug:
+        var: inventorytest
+    - name: Add A record {{ server_hostname }} to {{ domain_name }}
+      cloudflare_dns:
+        zone: "{{ domain_name }}"
+        record: "{{ server_hostname }}"
+        proxied: no
+        type: A
+        value: "{{ address.address }}"
+        account_email: "{{ login_email }}"
+        account_api_token: "{{ api_token }}"
+        state: present
+      register: record
+    - debug:
+        var: record
+##### This playbook is used for generating certificate keys.
+# - hosts: localhost
+#   tasks:
+#     - include_role:
+#         name: ssh-keys
+#       vars:
+#         ssh_keys_generate_keys:
+#           - path: /opt/keys/ansible/id_rsa_test
+#             comment: rsa
+#             owner: "{{ lookup('env','USER') }}"
+#             size: 4096
+#         ssh_keys_private_keys:
+#           - src: /opt/keys/ansible/id_rsa_test
+#             owner: "{{ lookup('env','USER') }}"
+#         ssh_keys_public_keys:
+#           - src: /opt/keys/ansible/id_rsa_test.pub
+#             owner: "{{ lookup('env','USER') }}"
+- hosts: ssh
+  user: root
+  connection: ssh
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  vars_files:
+    - /opt/keys/users/pub_key
+  tasks:
+    - include_role:
+        name: create-users
+      vars:
+        users:
+          - username: "{{ lookup('env','USER') }}"
+            password: "{{ default_password }}"
+            update_password: on_create
+            comment: Dev
+            shell: /bin/bash
+            ssh_key: "{{ ssh_pub_key }}"
+            exclusive_ssh_key: no
+            use_sudo: yes
+            use_sudo_nopass: yes
+            user_state: present
+            servers:
+              - ssh
+- hosts: ssh
+  user: root
+  connection: ssh
+  vars:
+    - update_apt_cache: yes
+  vars_files:
+    - /opt/vars/web.vars
+  tasks:
+    - debug:
+        msg: "Hostname of nginx is set to {{ inventory_hostname }}"
+    - debug:
+        msg: "Hostname of nginx is set to {{ server_hostname }}"
+    - name: Wait for DNS to come up
+      command: getent hosts "{{ server_hostname }}"
+      register: dns_result
+      retries: 30
+      delay: 5
+      until: dns_result is succeeded
+    - include_role:
+        name: "{{ item }}"
+      with_items:
+        - base
+        - nginx
+        - jenkins
+        - certbot
+    - name: set src IP from SSH env
+      shell: echo $SSH_CLIENT | awk '{print $1}'
+      register: src_ip
+    - debug:
+        var: src_ip
+    - name: UFW test
+      ufw:
+        state: enabled
+        rule: allow
+        src: "{{ src_ip.stdout }}/32"
+      register: userip
+    - debug:
+        var: userip

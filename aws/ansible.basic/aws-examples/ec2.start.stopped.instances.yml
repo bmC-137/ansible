@@ -1,0 +1,31 @@
+- hosts: localhost
+  gather_facts: no
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  tasks:
+    - name: Change Instance state to running
+      ec2_instance_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        ec2_region: "{{ AWS_REGION }}"
+        filters:
+          instance-state-name: stopped
+        # instance_tags:
+        #   Name: LAB_1
+        # wait: yes
+        # state: running
+      register: lab1
+    - debug:
+        var: lab1
+    - name: Start registered instances
+      ec2:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        ec2_region: "{{ AWS_REGION }}"
+        instance_id: "{{ lab1.instances[0].instance_id }}"
+        state: running
+        wait: yes
+    # - name: After registering the instance get the public IP
+    #   loop: "{{ lab1.instances }}"
+    #   debug:
+    #     msg: "IP: {{ lab1.instances[0].public_ip }}"

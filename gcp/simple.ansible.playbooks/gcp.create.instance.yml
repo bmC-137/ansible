@@ -1,0 +1,71 @@
+- hosts: localhost
+  gather_facts: no
+  vars:
+    gcp_cred_file: /opt/keys/gcp/key.json
+  vars_files:
+    - /opt/keys/gcp/vars
+  tasks:
+    - name: Create hdd
+      gcp_compute_disk:
+        name: "disk-instance-default"
+        size_gb: "{{ hdd_size }}"
+        # source_image: "ubuntu-1804-bionic-v20200716"
+        source_image: "/projects/ubuntu-os-cloud/global/images/family/ubuntu-1804-lts"
+        zone: "{{ zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: disk
+    - name: Create network
+      gcp_compute_network:
+        name: "network-instance-default"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: network
+    - name: create address
+      gcp_compute_address:
+        name: "itenv-flask-lib"
+        region: "{{ region }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: address
+    - name: Create instance
+      gcp_compute_instance:
+        state: present
+        name: "{{ instance_name }}"
+        machine_type: "{{ instance_type }}"   #f1-micro
+        disks:
+          - auto_delete: true
+            boot: true
+            source: "{{ disk }}"
+        network_interfaces:
+          - network: "{{ network }}"
+          # - network: null
+            access_configs:
+              - name: "External NAT"
+                nat_ip: "{{ address }}"
+                type: "ONE_TO_ONE_NAT"
+        zone: "{{ zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        state: present
+      register: instance
+
+    - name: Wait for SSH to come up
+      wait_for: host={{ address.address }} port=22 delay=60 timeout=60
+
+    - name: Add host to groupname
+      add_host: hostname={{ address.address }} groupname=gcp
+    # - name: Manage new instances
+    #   hosts: new_instances
+    #   connection: ssh
+    #   sudo: True
+    #   roles:
+    #     - base_configuration
+    #     - production_server

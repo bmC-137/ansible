@@ -1,0 +1,107 @@
+- name: Remove everything
+  hosts: all
+  gather_facts: false
+  vars:
+    aws_region: eu-west-1
+    ssh_key_name: my_key
+    vpc_name: itenv
+    vpc_cidr: 10.10.x.0/24
+  tasks:
+    - name: Get VPC IDs
+      ec2_vpc_net_info:
+        aws_access_key: "{{ vault_aws_access_key }}"
+        aws_secret_key: "{{ vault_aws_secret_key }}"
+        region: "{{ aws_region }}"
+        filters:
+          "tag:Name": "{{ vpc_name }}"
+          cidr-block: "{{ vpc_cidr }}"
+      register: vpc
+
+    - block:
+        - name: VPC ID
+          set_fact:
+            vpc_id: "{{ vpc.vpcs[0].vpc_id }}"
+
+        - name: Find instances to remove
+          ec2_instance_info:
+            aws_access_key: "{{ vault_aws_access_key }}"
+            aws_secret_key: "{{ vault_aws_secret_key }}"
+            region: "{{ aws_region }}"
+            filters:
+              vpc-id: "{{ vpc_id }}"
+          register: instances
+
+        - name: Terminate instances
+          ec2:
+            aws_access_key: "{{ vault_aws_access_key }}"
+            aws_secret_key: "{{ vault_aws_secret_key }}"
+            region: "{{ aws_region }}"
+            instance_ids: "{{ item.instance_id }}"
+            state: absent
+            wait: true
+          loop: "{{ instances.instances }}"
+
+        - name: Remove Security Group
+          ec2_group:
+            aws_access_key: "{{ vault_aws_access_key }}"
+            aws_secret_key: "{{ vault_aws_secret_key }}"
+            region: "{{ aws_region }}"
+            name: "Test Security Group"
+            state: absent
+
+        - name: Remove public subnet in "{{ aws_region }}"
+          ec2_vpc_subnet:
+              aws_access_key: "{{ vault_aws_access_key }}"
+              aws_secret_key: "{{ vault_aws_secret_key }}"
+              region: "{{ aws_region }}"
+              vpc_id: "{{ vpc_id }}"
+              cidr: "{{ vpc_cidr }}"
+              state: absent
+
+        - name: Remove internet gateway for ansibleVPC
+          ec2_vpc_igw:
+            aws_access_key: "{{ vault_aws_access_key }}"
+            aws_secret_key: "{{ vault_aws_secret_key }}"
+            region: "{{ aws_region }}"
+            vpc_id: "{{ vpc_id }}"
+            state: absent
+
+        - name: Find route tables for removal
+          ec2_vpc_route_table_info:
+            aws_access_key: "{{ vault_aws_access_key }}"
+            aws_secret_key: "{{ vault_aws_secret_key }}"
+            region: "{{ aws_region }}"
+            filters:
+              # Note the - instead of _
+              vpc-id: "{{ vpc_id }}"
+          register: route_tables
+
+        - name: Remove route tables
+          ec2_vpc_route_table:
+              aws_access_key: "{{ vault_aws_access_key }}"
+              aws_secret_key: "{{ vault_aws_secret_key }}"
+              region: "{{ aws_region }}"
+              route_table_id: "{{ item.id }}"
+              vpc_id: "{{ vpc_id }}"
+              lookup: id
+              state: absent
+          loop: "{{ route_tables.route_tables }}"
+          when: item.associations | length == 0 or not item.associations[0].main
+
+        - name: Remove SSH key
+          ec2_key:
+            aws_access_key: "{{ vault_aws_access_key }}"
+            aws_secret_key: "{{ vault_aws_secret_key }}"
+            region: "{{ aws_region }}"
+            name: "{{ ssh_key_name }}"
+            state: absent
+
+        - name: Remove VPC
+          ec2_vpc_net:
+            aws_access_key: "{{ vault_aws_access_key }}"
+            aws_secret_key: "{{ vault_aws_secret_key }}"
+            region: "{{ aws_region }}"
+            name: "{{ vpc_name }}"
+            cidr_block: "{{ vpc_cidr }}"
+            state: absent
+      when: vpc.vpcs | length > 0

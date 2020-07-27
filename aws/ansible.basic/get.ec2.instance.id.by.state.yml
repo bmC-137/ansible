@@ -1,0 +1,57 @@
+- hosts: localhost
+  gather_facts: no
+  vars:
+    time: "{{ lookup('pipe', 'date -d \"1 day ago\" +\"%Y%m%d\"') }}"
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  tasks:
+    - name: Output instance info
+      ec2_instance_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        aws_region: "{{ AWS_REGION }}"
+        filters:
+          instance-state-name: running
+      register: ec2info
+    - set_fact: ec2instanceid="{{ ec2info.instances[0].vpc_id }}" ec2groupid="{{ ec2info.instances[0].security_groups[0].group_id }}" ec2groupname="{{ ec2info.instances[0].security_groups[0].group_name }}"
+    # - debug:
+    #     var: ec2info.instances[0].instance_id
+    - debug:
+        var: ec2info
+    - name: Get sec group ID by instance ID
+      ec2_group_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        aws_region: "{{ AWS_REGION }}"
+        filters:
+          vpc_id: "{{ ec2instanceid }}"
+      register: secgroupinfo
+    - debug:
+        var: secgroupinfo
+    - name: Get my public IP
+      ipinfoio_facts:
+    - debug: var=ec2groupid
+    - set_fact: sggroupid="{{ secgroupinfo.security_groups[0].ip_permissions[0].ip_ranges }}"
+    - debug:
+        var: sggroupid
+    - name: Add my current Ip to SEC Group
+      ec2_group:
+        name: launch-wizard-1
+        description: "{{ ansible_facts.ip }}, {{ time }}"
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        aws_region: "{{ AWS_REGION }}"
+        purge_rules: no
+        purge_rules_egress: no
+        purge_tags: no
+        vpc_id: "{{ ec2instanceid }}"
+        rules:
+          - proto: all
+            # group_id: "{{ ec2groupid }}"
+            # group_name: "{{ ec2groupname }}"
+            cidr_ip: "{{ ansible_facts.ip }}/32"
+            group_desc: "{{ ansible_facts.ip }}, {{ time }}"
+
+
+
+######## https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html

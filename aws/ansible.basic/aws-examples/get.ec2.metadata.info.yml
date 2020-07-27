@@ -1,0 +1,10 @@
+- hosts: localhost
+  gather_facts: no
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  tasks:
+    - name: Filter the instances that we need to gather data
+      ec2_instance_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        ec2_zone: "{{ AWS_REGION }}"

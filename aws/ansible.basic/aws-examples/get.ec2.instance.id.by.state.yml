@@ -1,0 +1,32 @@
+- hosts: localhost
+  gather_facts: no
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  tasks:
+    - name: Output instance info
+      ec2_instance_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        aws_region: "{{ AWS_REGION }}"
+        filters:
+          instance-state-name: running
+      register: ec2info
+    - set_fact: ec2instanceid="{{ ec2info.instances[0].vpc_id }}"
+    - debug:
+        var: ec2info.instances[0].instance_id
+    - debug:
+        var: ec2info
+    - name: Get sec group ID by instance ID
+      ec2_group_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        aws_region: "{{ AWS_REGION }}"
+        filters:
+          vpc_id: "{{ ec2instanceid }}"
+      register: secgroupinfo
+    - debug:
+        var: secgroupinfo
+
+
+
+######## https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html

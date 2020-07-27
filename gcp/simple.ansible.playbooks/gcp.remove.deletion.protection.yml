@@ -1,0 +1,29 @@
+- hosts: localhost
+  gather_facts: no
+  vars:
+    gcp_cred_file: /opt/keys/gcp/key.json
+  vars_files:
+    - /opt/keys/gcp/vars.delete.instance
+  tasks:
+    - name: Get info on instance by state.
+      gcp_compute_instance_info:
+        zone: "{{ zone }}"
+        project: "{{ gcp_project }}"
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        # filters:
+        #   - state: stopped
+      register: instances
+    - debug:
+        var: instances
+    - name: Change Deletion Protection
+      gcp_compute_instance:
+        auth_kind: "{{ gcp_cred_type }}"
+        service_account_file: "{{ gcp_cred_file }}"
+        project: "{{ gcp_project }}"
+        zone: "{{ zone }}"
+        name: "{{ instances.resources[0].name }}"
+        deletion_protection: no
+        # for this to work change /usr/lib/python3.8/site-packages/ansible/modules/cloud/google/gcp_compute_instance.py line 1381 {deletionProtection} to deletion_protection
+        state: present
+        status: TERMINATED

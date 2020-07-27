@@ -1,0 +1,58 @@
+- hosts: localhost
+  # gather_facts: yes
+  gather_facts: no
+  vars_files:
+    - /opt/keys/aws/keys.yml
+  tasks:
+    - name: Get AMI info
+      ec2_ami_info:
+        aws_access_key: "{{ AWS_ACCESS_ID }}"
+        aws_secret_key: "{{ AWS_SECRET }}"
+        ec2_region: "{{ AWS_REGION }}"
+        owners: 099720109477
+        # owner: amazon
+        filters:
+          # description: "*bionic*"
+          architecture: x86_64
+          name: "ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-*"
+          root-device-type: ebs
+      register: amis
+    ##### remove the comment and it will print all matching AMIs... for debugging
+    # - name: print out AMIs to terminal window
+    #   debug:
+    #     var: amis
+    - name: Show AMIs info
+      vars:
+        ubuntu_ami: "{{ amis.images |sort(attribute='creation_date') | last }}"
+    ##### couldnt set the desired filter.... must play more with it.
+        # ubuntu_ami: "{{ amis.images | selectattr('name', 'defined' | selectattr('name', 'match')) sort(attribute='creation_date') | last }}"
+        # {{ amis.images | selectattr('description, 'defined') | sort(attribute='creation_date') | last }}
+      debug:
+        msg:
+        - "{{ ubuntu_ami.image_id }}"
+        # - "{{ item.description }}"
+        - "{{ ubuntu_ami.creation_date }}"
+      # loop: "{{ amis.images }}"
+      # loop_control:
+        # label: "{{ item.image_id }}"
+
+
+# https://stackoverflow.com/questions/50218486/ansible-querying-aws-amis
+##
+# ec2_ami_info
+##
+# debug
+##
+# loop
+##
+# loop_control
+##
+# https://docs.ansible.com/ansible/latest/user_guide/playbooks_loops.html
+##
+# https://docs.ansible.com/ansible/latest/modules/ec2_ami_info_module.html#ec2-ami-info-module
+##
+# https://docs.ansible.com/ansible/latest/modules/debug_module.html
+##
+# https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-instances.html#options
+##
+          #{{ amis.images | selectattr('name', 'defined') | sort(attribute='creation_date') | last }}
