@@ -4,6 +4,8 @@
     gcp_cred_file: /opt/keys/gcp/key.json
   vars_files:
     - /opt/keys/gcp/vars
+    - /opt/vars/cloudflare.vars
+    - /opt/keys/cloudflare/keys.yml
   tasks:
     - name: Get info on instance by state.
       gcp_compute_instance_info:
@@ -38,6 +40,19 @@
         regexp: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"
         backup: yes
         state: absent
+    - name: Add A record {{ server_hostname }} to {{ domain_name }}
+      cloudflare_dns:
+        zone: "{{ domain_name }}"
+        record: "{{ server_hostname }}"
+        # proxied: no
+        # type: A
+        value: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"
+        account_email: "{{ login_email }}"
+        account_api_token: "{{ api_token }}"
+        state: absent
+      register: record
+    - debug:
+        var: record
     # - name: remove host-name from known hosts
     #   lineinfile:
     #     # path: "/home/{{lookup('env','USER')}}/.ssh/known_hosts"
