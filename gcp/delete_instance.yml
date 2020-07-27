@@ -40,10 +40,10 @@
         regexp: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"
         backup: yes
         state: absent
-    - name: Add A record {{ server_hostname }} to {{ domain_name }}
+    - name: Remove A record {{ server_hostname }} to {{ domain_name }}
       cloudflare_dns:
         zone: "{{ domain_name }}"
-        record: "{{ server_hostname }}"
+        # record: "{{ server_hostname }}"
         # proxied: no
         # type: A
         value: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"

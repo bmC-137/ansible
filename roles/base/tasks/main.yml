@@ -11,6 +11,16 @@
   tags: packages
         packages.security
 
+- name: Add certbot nginx repo
+  apt_repository:
+    repo: ppa:certbot/certbot
+    state: present
+
+- name: Add nginx repository
+  apt_repository:
+    repo: ppa:nginx/stable
+    state: present
+
 - name: Install base packages
   apt: name={{ item }} update_cache={{ update_apt_cache }} force=yes state=present
   with_items:
@@ -29,6 +39,7 @@
     - python-pycurl
     - supervisor
     - unzip
+    - python-certbot-nginx
   tags: packages
 
 - name: Upgrade pip

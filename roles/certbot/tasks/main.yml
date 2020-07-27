@@ -13,7 +13,6 @@
 
 - name: If Nginx didnt exit, kill it
   command: killall nginx
-  when: nginx_status.stat.exists
   ignore_errors: yes
 
 - name: Install certbot and generate cert
@@ -22,6 +21,10 @@
   args:
     creates: "{{ certbot_output_dir }}"
 
+- name: If Nginx didnt exit, kill it
+  command: killall nginx
+  ignore_errors: yes
+
 - name: Ensure Nginx is started
   service: name=nginx state=started
   when: nginx_status.stat.exists
@@ -29,5 +32,5 @@
 - name: Ensure a cron job to auto-renew the cert exists
   cron: name="daily auto renew cert"
         special_time=daily
-        job="{{ certbot_script }} renew --standalone --no-self-upgrade --pre-hook \"service nginx stop\" --post-hook \"service nginx start\" --quiet"
+        job="{{ certbot_script }} renew --nginx --no-self-upgrade --pre-hook \"service nginx stop\" --post-hook \"service nginx start\" --quiet"
         state=present
