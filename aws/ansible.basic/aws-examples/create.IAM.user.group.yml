@@ -13,12 +13,12 @@
         ec2_region: "{{ AWS_REGION }}"
         iam_type: user
         state: present
-        name: itenv
+        name: user-dev
         access_key_state: create
-      register: itenv
+      register: iam_user
 
     # - debug: 
-    #     var: itenv
+    #     var: iam_user
 
     - name: Create group and add the user to it
       iam_group:
@@ -30,8 +30,8 @@
         managed_policy:
           - arn:aws:iam::aws:policy/AdministratorAccess
         users:
-          - itenv
-      register: itenvgroup
+          - iam_group
+      register: iam_group
 
     # - debug:
-    #     var: itenvgroup
+    #     var: iam_group

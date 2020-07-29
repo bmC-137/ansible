@@ -27,7 +27,7 @@
       register: network
     - name: create address
       gcp_compute_address:
-        name: "itenv-flask-lib"
+        name: "net-address"
         region: "{{ region }}"
         project: "{{ gcp_project }}"
         auth_kind: "{{ gcp_cred_type }}"

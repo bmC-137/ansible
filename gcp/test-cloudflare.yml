@@ -7,6 +7,7 @@
     - /opt/vars/web.vars
     - /opt/vars/cloudflare.vars
     - /opt/keys/cloudflare/keys.yml
+    - /opt/keys/cloudflare/api-token.yml
   tasks:
     - name: Get info on instance by state.
       gcp_compute_instance_info:
@@ -20,38 +21,38 @@
       register: instances
     - debug:
         var: instances
-    - name: delete instance
-      gcp_compute_instance:
-        name: "{{ instances.resources[0].name }}"
-        zone: "{{ zone }}"
-        project: "{{ gcp_project }}"
-        auth_kind: "{{ gcp_cred_type }}"
-        service_account_file: "{{ gcp_cred_file }}"
-        state: absent
-    - name: remove IP from inventory hosts file
-      lineinfile:
-        path: /etc/ansible/hosts
-        regexp: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"
-        backup: yes
-        state: absent
-    - name: remove IP from known hosts
-      lineinfile:
-        # path: "/home/{{lookup('env','USER')}}/.ssh/known_hosts"
-        path: ~/.ssh/known_hosts
-        regexp: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"
-        backup: yes
-        state: absent
-    - name: Remove A record {{ server_hostname }} to {{ domain_name }}
-      cloudflare_dns:
-        zone: "{{ domain_name }}"
+    # - name: remove IP from inventory hosts file
+    #   lineinfile:
+    #     path: /etc/ansible/hosts
+    #     regexp: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"
+    #     backup: yes
+    #     state: absent
+    # - name: remove IP from known hosts
+    #   lineinfile:
+    #     # path: "/home/{{lookup('env','USER')}}/.ssh/known_hosts"
+    #     path: ~/.ssh/known_hosts
+    #     regexp: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"
+    #     backup: yes
+    #     state: absent
+    - name:  get DNS records
+      uri:
+        url: https://api.cloudflare.com/client/v4/zones/zoneid/dns_records?page=1&per_page=1&type=A
+        method: GET
+        headers:
+          X-Auth-Email: "{{ login_email }}"
+          X-Auth-Key: "{{ api_dns_token }}"
+          Content-Type: "application/json"
+        # register: cloudflare_records
+        # zone: "{{ domain_name }}"
         # record: "{{ server_hostname }}"
         # proxied: no
         # type: A
-        value: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"
-        account_email: "{{ login_email }}"
-        account_api_token: "{{ api_token }}"
-        state: absent
+        # value: "{{ instances.resources[0].networkInterfaces[0].accessConfigs[0].natIP }}"
+        # account_email: "{{ login_email }}"
+        # account_api_token: "{{ api_token }}"
       register: record
+    # - debug:
+    #     var: cloudflare_records
     - debug:
         var: record
     # - name: remove host-name from known hosts

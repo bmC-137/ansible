@@ -1,0 +1,18 @@
+- hosts: localhost
+  gather_facts: no
+  vars_files:
+    - /opt/vars/cloudflare.vars
+    - /opt/keys/cloudflare/keys.yml
+    - /opt/keys/cloudflare/api-token.yml
+  tasks:
+    - name:  get DNS records
+      uri:
+        url: https://api.cloudflare.com/client/v4/zones
+        method: GET
+        headers:
+          X-Auth-Key: "{{ global_token }}"
+          X-Auth-Email: "{{ login_email }}"
+          Content-Type: "application/json"
+      register: record_zones
+    - debug:
+        var: record_zones
