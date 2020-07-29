@@ -1,7 +1,7 @@
 # - hosts: ssh
 - hosts: localhost
   vars:
-    - server_hostname: bm.itenv.net
+    - server_hostname: set_here_hostname...
   # gather_facts: true
   # user: root
   # connection: ssh
