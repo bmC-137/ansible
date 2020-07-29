@@ -4,7 +4,7 @@
   vars:
     aws_region: eu-west-1
     ssh_key_name: my_key
-    vpc_name: itenv
+    vpc_name: vpc_name_must_be_set
     vpc_cidr: 10.10.x.0/24
   tasks:
     - name: Get VPC IDs
